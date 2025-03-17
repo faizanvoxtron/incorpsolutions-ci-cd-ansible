@@ -1,0 +1,53 @@
+name: Create Pull Request and Notify
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  auto-pull-request:
+    name: PullRequestAction
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Create Pull Request
+        id: create_pr
+        uses: diillson/auto-pull-request@v1.0.1
+        with:
+          source_branch: ""                                 
+          destination_branch: "main"                        
+          pr_title: "Pulling ${{ github.ref }} into main"   
+          pr_body: |                                        
+            :crown: *An automated PR*
+            This pull request has been created automatically by the workflow.
+            Please review the changes and merge if acceptable.
+          pr_assignee: "" #your username                   
+          pr_label: "auto-pr"                               
+          pr_allow_empty: true                              
+          github_token: ${{ secrets.TOKEN }}
+
+      - name: Get Repository Info
+        id: repo_info
+        run: |
+          echo "::set-output name=repo::$(echo $GITHUB_REPOSITORY)"
+          echo "::set-output name=pr_number::$(jq -r '.number' /tmp/pull-request.json)"
+
+      - name: Send email notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.yandex.com
+          server_port: 465
+          username: 
+          password: ${{ secrets.SENDER_PASSWORD }}
+          subject: "Approval required for pull request #${{ steps.create_pr.outputs.pull-request-number }}"
+          body: |
+            ${{ github.event.head_commit.author.name }} has created a pull request with the commit message: "${{ github.event.head_commit.message }}" on the `${{ github.ref_name }}` branch.
+
+            Please review and approve the changes.
+
+            You can view and approve the pull request [here](https://github.com/${{ steps.repo_info.outputs.repo }}/pull/${{ steps.repo_info.outputs.pr_number }}).
+          to: ""
+          from: ""
